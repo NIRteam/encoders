@@ -42,25 +42,27 @@ def neuroEmulation(line):
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO, filename="logfile.log", filemode="w")
-    startTime = time.time()
+    with open("metrics.txt", "w") as metricsFile:
+        logging.basicConfig(level=logging.DEBUG, filename="logfile.log", filemode="w")
+        startTime = time.time()
 
-    lines = getAllLinesFromFile()
-    results = neuroWorkMethod(lines)
-    logging.info("\n---------------------------------------------------------------------\n"
-                 + "                               results                               \n"
-                 + "---------------------------------------------------------------------")
+        lines = getAllLinesFromFile()
+        results = neuroWorkMethod(lines)
+        logging.debug("\n---------------------------------------------------------------------\n"
+                      + "                               results                               \n"
+                      + "---------------------------------------------------------------------")
 
-    numberOfResult = 1
-    for result in results:
-        logging.info("\nresult № " + str(numberOfResult) + ":" +
-                     "\n    accuracy: %.3f" % result[0] +
-                     "\n    start line length: " + str(result[1]) +
-                     "\n    result line length: " + str(result[2]) +
-                     "\n    time spent on processing: %.6f" % result[3] +
-                     "\n    start line: " + result[4] +
-                     "\n    new line: " + result[5] + "\n")
+        numberOfResult = 1
+        for result in results:
+            metricsMsg = ("\nresult № " + str(numberOfResult) + ":" +
+                          "\n    accuracy: %.3f" % result[0] +
+                          "\n    start line length: " + str(result[1]) +
+                          "\n    result line length: " + str(result[2]) +
+                          "\n    time spent on processing: %.6f" % result[3] +
+                          "\n    start line: " + result[4] +
+                          "\n    new line: " + result[5] + "\n")
+            logging.debug(metricsMsg)
+            metricsFile.write(metricsMsg)
+            numberOfResult += 1
 
-        numberOfResult += 1
-
-    logging.info("time for all processing: %.6f" % (time.time() - startTime))
+        logging.debug("time for all processing: %.6f" % (time.time() - startTime))
