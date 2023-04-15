@@ -1,7 +1,9 @@
 
-def getAllFromFile():
-    with open("test_image.jpg", "b") as myFile:
-        print(myFile.read())
+def getAllLinesFromFile():
+    with open("file.txt", "r") as myFile:
+        lines = myFile.readlines()
+        array = [line.strip() for line in lines]
+        return array
 
 
 def neuroWorkMethod():
@@ -9,4 +11,4 @@ def neuroWorkMethod():
 
 
 if __name__ == '__main__':
-    getAllFromFile()
+    print(getAllLinesFromFile())
