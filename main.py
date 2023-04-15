@@ -1,3 +1,4 @@
+import logging
 import random
 import time
 
@@ -22,7 +23,7 @@ def neuroWorkMethod(lines):
             if ord(line[i]) == ord(newLine[i]):
                 numberOfSameSymbols += 1
 
-        accuracy = numberOfSameSymbols/max(len(line), len(newLine))
+        accuracy = numberOfSameSymbols / max(len(line), len(newLine))
 
         results.append([accuracy, len(line), len(newLine), (time.time() - startTime), line, newLine])
     return results
@@ -41,20 +42,25 @@ def neuroEmulation(line):
 
 
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO, filename="logfile.log", filemode="w")
     startTime = time.time()
 
     lines = getAllLinesFromFile()
     results = neuroWorkMethod(lines)
-    print("---------------------------------------------------------------------\n"
-          + "                               results                               \n"
-          + "---------------------------------------------------------------------")
+    logging.info("\n---------------------------------------------------------------------\n"
+                 + "                               results                               \n"
+                 + "---------------------------------------------------------------------")
 
     numberOfResult = 1
     for result in results:
-        print("result №" + str(numberOfResult) + ":",
-              "\n    accuracy: %.3f" % result[0], "\n    start line length: ", result[1],
-              "\n    result line length: ", result[2], "\n    time spent on processing: %.6f" % result[3],
-              "\n    start line: ", result[4], "\n    new line: ", result[5], "\n")
+        logging.info("\nresult № " + str(numberOfResult) + ":" +
+                     "\n    accuracy: %.3f" % result[0] +
+                     "\n    start line length: " + str(result[1]) +
+                     "\n    result line length: " + str(result[2]) +
+                     "\n    time spent on processing: %.6f" % result[3] +
+                     "\n    start line: " + result[4] +
+                     "\n    new line: " + result[5] + "\n")
+
         numberOfResult += 1
 
-    print("time for all processing: %.6f" % (time.time() - startTime))
+    logging.info("time for all processing: %.6f" % (time.time() - startTime))
