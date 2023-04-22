@@ -4,7 +4,7 @@ import time
 
 
 def getAllLinesFromFile():
-    with open("file.txt", "r") as myFile:
+    with open("data/input/input.txt", "r") as myFile:
         lines = myFile.readlines()
         array = [line.strip() for line in lines]
         return array
