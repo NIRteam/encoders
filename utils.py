@@ -28,7 +28,7 @@ def transformText(line):
     return line
 
 
-def writeMetricsInFile(results):
+def writeMetricsInFile(results, timeForRes):
     with open("numberOfRun.txt", "r") as numberOfRunFile:
         numberOfRun = numberOfRunFile.read()
 
@@ -41,6 +41,7 @@ def writeMetricsInFile(results):
                           "\n    accuracy: %.3f" % result[0] +
                           "\n    start line length: " + str(result[1]) +
                           "\n    result line length: " + str(result[2]) +
+                          "\n    time for processing this command: " + str(timeForRes[numberOfResult - 1]) +
                           "\n    start line: " + result[3] +
                           "\n    new line: " + result[4] + "\n")
             metricsFile.write(metricsMsg)
