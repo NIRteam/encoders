@@ -60,3 +60,17 @@ def neuroEmulation(line):
             symbol = ''
         result += symbol
     return result
+
+
+# bch
+def encodeToBCH(command, bch):
+    data = str.encode(command, encoding="utf-8")
+    ecc = bch.encode(data)
+    pkg = data + ecc
+    return pkg
+
+
+def decodeFromBCH(pkg, bch):
+    data, ecc = pkg[:-bch.ecc_bytes], pkg[-bch.ecc_bytes:]
+    val = bch.decode(data, ecc)
+    return val[1].decode("utf-8")
