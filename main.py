@@ -28,10 +28,11 @@ def main():
         startTime = time.time()
         transformedCommand = utils.transformText(command)
         encodedLine = utils.encodeToBCH(command, bch)
-        decodedLine = utils.decodeFromBCH(encodedLine, bch)
-
+        
         neuroNetwork.runEncoder()
         neuroNetwork.runDecoder()
+
+        decodedLine = utils.decodeFromBCH(encodedLine, bch)
 
         newLine = utils.neuroEmulation(command)
 
