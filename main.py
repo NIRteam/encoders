@@ -1,8 +1,8 @@
+import configparser
 import logging
 import time
 
-import bchlib
-
+import code_utils
 import metrics
 import neuroNetwork
 import utils
@@ -10,15 +10,16 @@ import utils
 
 def main():
     logging.basicConfig(level=logging.DEBUG, filename="logfile.log", filemode="w")
-    BCH_POLYNOMIAL = 8219
-    BCH_BITS = 16
-    bch = bchlib.BCH(BCH_POLYNOMIAL, BCH_BITS)
     resultOfCheckDir = utils.checkDir()
 
     if not resultOfCheckDir:
         logging.debug("Directories created")
         return 0
 
+    config = configparser.ConfigParser()
+    config.read('settings/settings.ini')
+
+    coder = code_utils.create_coder(config)
     resMetrics = []
     resTimes = []
     logging.debug("Directories already exist")
@@ -27,12 +28,12 @@ def main():
     for command in commands:
         startTime = time.time()
         transformedCommand = utils.transformText(command)
-        encodedLine = utils.encodeToBCH(command, bch)
+        encodedLine = code_utils.encode(command, coder, config)
         
         neuroNetwork.runEncoder()
         neuroNetwork.runDecoder()
 
-        decodedLine = utils.decodeFromBCH(encodedLine, bch)
+        decodedLine = code_utils.decode(encodedLine, coder, config)
 
         newLine = utils.neuroEmulation(command)
 
@@ -43,5 +44,4 @@ def main():
 
 
 if __name__ == '__main__':
-
     main()
