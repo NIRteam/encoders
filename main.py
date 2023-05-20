@@ -70,26 +70,33 @@ def main():
         transforms.ToTensor()
     ])
 
-    for i in range(1, len(next(os.walk('data/input'))[1])):
+    folder_path = 'data/input'  # путь до папки
+    dirs = [d for d in os.listdir(folder_path) if os.path.isdir(os.path.join(folder_path, d))]
+    for folder_name in dirs:
         model = neuroNetwork.Autoencoder()
         model = model.to(device)
         optimizer = optim.Adam(model.parameters(), lr=0.001)
 
+        if len(dirs) == 1:
+            folder_name = ""
+        else:
+            folder_name = "/" + folder_name
         #  обучение нейронной сети
         if config.getint('run', 'mod') in [0, 1]:
-            model = model_learn(model, device, criterion, transform, optimizer)
+            model = model_learn(model, device, criterion, transform, optimizer, folder_name)
 
         #  прогон тестов нейронной сети
         if config.getint('run', 'mod') in [0, 2]:
-            model_test(model, device, criterion, transform)
+            model_test(model, device, criterion, transform, folder_name)
 
 
-def model_learn(model, device, criterion, transform, optimizer):
-    dataset = torchvision.datasets.ImageFolder(root='drive/MyDrive/Colab Notebooks/data/input', transform=transform)
+def model_learn(model, device, criterion, transform, optimizer, folder_name):
+    dataset = torchvision.datasets.ImageFolder(
+        root=f'drive/MyDrive/Colab Notebooks/data/input{folder_name}', transform=transform
+    )
     dataloader = DataLoader(dataset, batch_size=8, shuffle=True)
     for epoch in range(10):
         running_loss = 0.0
-        number_img = 0
         for i, data in enumerate(dataloader, 0):
             inputs, _ = data
             inputs = inputs.to(device)
@@ -102,15 +109,18 @@ def model_learn(model, device, criterion, transform, optimizer):
 
         print('Epoch %d loss: %.3f' % (epoch + 1, running_loss / len(dataloader)))
         if ((epoch + 1) % 10 == 0):
-            torch.save(model.state_dict(), f'drive/MyDrive/data/веса/autoencoder, 512, {epoch + 101} эпох.pth')
-    torch.save(model.state_dict(), 'drive/MyDrive/Colab Notebooks/data/веса/autoencoder.pth')
+            torch.save(model.state_dict(),
+                       f'drive/MyDrive/data/веса{folder_name}/autoencoder, 512, {epoch + 101} эпох.pth')
+    torch.save(model.state_dict(), f'drive/MyDrive/Colab Notebooks/data/веса{folder_name}/autoencoder.pth')
 
     return model
 
 
-def model_test(model, device, criterion, transform):
+def model_test(model, device, criterion, transform, folder_name):
     model.eval()
-    test_dataset = torchvision.datasets.ImageFolder(root="drive/MyDrive/Colab Notebooks/data/test", transform=transform)
+    test_dataset = torchvision.datasets.ImageFolder(
+        root=f"drive/MyDrive/Colab Notebooks/data/test{folder_name}", transform=transform
+    )
     test_dataloader = DataLoader(test_dataset, batch_size=8, shuffle=False)
 
     mse_scores, ssim_scores, cosine_similarity_scores, hamming_distance_scores, cor_pirson_scores = [], [], [], [], []
@@ -136,7 +146,7 @@ def model_test(model, device, criterion, transform):
                 cor_pirson_scores.append(counted_metrics[4])
 
                 Image.fromarray((counted_metrics[5] * 255).astype('uint8')).save(
-                    f'drive/MyDrive/Colab Notebooks/data/output/test_output_{number_img}.jpg'
+                    f'drive/MyDrive/Colab Notebooks/data/output{folder_name}/test_output_{number_img}.jpg'
                 )
 
     test_mse = np.mean(mse_scores)
@@ -146,7 +156,7 @@ def model_test(model, device, criterion, transform):
     test_cor_pirson = np.mean(cor_pirson_scores)
 
     # Запись метрик в файл
-    with open('metrics.txt', 'w') as f:
+    with open(f'metrics({folder_name}).txt', 'w') as f:
         f.write(f'Test MSE: {test_mse}\n')
         f.write(f'Test SSIM: {test_ssim}\n')
         f.write(f'Test cosine similarity: {test_cosine_similarity}\n')
