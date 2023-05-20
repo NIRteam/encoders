@@ -1,5 +1,6 @@
 import configparser
 import logging
+import os
 import time
 import numpy as np
 import torch
@@ -51,16 +52,39 @@ def old_main():
 
 
 def main():
+    logging.basicConfig(level=logging.DEBUG, filename="logfile.log", filemode="w")
+    resultOfCheckDir = utils.checkDir()
+
+    if not resultOfCheckDir:
+        logging.debug("Directories created")
+        return 0
+
+    config = configparser.ConfigParser()
+    config.read('settings/settings.ini')
+
+    # задание параметров нейронной сети
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = neuroNetwork.Autoencoder()
-    model = model.to(device)
     criterion = nn.MSELoss()
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
     transform = transforms.Compose([
-        transforms.Resize((512, 512)),
+        transforms.Resize(config.getint('transform', 'x'), config.getint('transform', 'y')),
         transforms.ToTensor()
     ])
 
+    for i in range(1, len(next(os.walk('data/input'))[1])):
+        model = neuroNetwork.Autoencoder()
+        model = model.to(device)
+        optimizer = optim.Adam(model.parameters(), lr=0.001)
+
+        #  обучение нейронной сети
+        if config.getint('run', 'mod') in [0, 1]:
+            model = model_learn(model, device, criterion, transform, optimizer)
+
+        #  прогон тестов нейронной сети
+        if config.getint('run', 'mod') in [0, 2]:
+            model_test(model, device, criterion, transform)
+
+
+def model_learn(model, device, criterion, transform, optimizer):
     dataset = torchvision.datasets.ImageFolder(root='drive/MyDrive/Colab Notebooks/data/input', transform=transform)
     dataloader = DataLoader(dataset, batch_size=8, shuffle=True)
     for epoch in range(10):
@@ -81,6 +105,10 @@ def main():
             torch.save(model.state_dict(), f'drive/MyDrive/data/веса/autoencoder, 512, {epoch + 101} эпох.pth')
     torch.save(model.state_dict(), 'drive/MyDrive/Colab Notebooks/data/веса/autoencoder.pth')
 
+    return model
+
+
+def model_test(model, device, criterion, transform):
     model.eval()
     test_dataset = torchvision.datasets.ImageFolder(root="drive/MyDrive/Colab Notebooks/data/test", transform=transform)
     test_dataloader = DataLoader(test_dataset, batch_size=8, shuffle=False)
