@@ -12,15 +12,20 @@ def create_coder(config):
         return reedsolo.RSCodec(config.getint("rs", "ecc"), config.getint("rs", "max_size"))
 
 
-def encode(command, coder, config):
+def encode(thingToEncode, coder, config):
     if config.get('mode', 'mode') == "bch":
-        data = str.encode(command, encoding="utf-8")
+        data = str.encode(thingToEncode, encoding="utf-8")
         ecc = coder.encode(data)
         pkg = data + ecc
         return pkg
 
     if config.get('mode', 'mode') == "rs":
-        return coder.encode(command.encode("utf-8"))
+        encoded_data = coder.encode(thingToEncode.encode("utf-8"))
+        res = []
+        for i in encoded_data:
+            res.append(i)
+
+        return res
 
 
 def decode(pkg, coder, config):
@@ -30,7 +35,12 @@ def decode(pkg, coder, config):
         return val[1].decode("utf-8")
 
     if config.get('mode', 'mode') == "rs":
-        return coder.decode(pkg)[0].decode("utf-8")
+        decoded_data = coder.decode(pkg)[0].decode("utf-8")
+        res = []
+        for i in decoded_data:
+            res.append(i)
+
+        return res
 
 
 def wrong_mode_raise(config):
