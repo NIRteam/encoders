@@ -1,4 +1,6 @@
-import bchlib
+import configparser
+
+import galois
 import reedsolo
 
 
@@ -6,7 +8,7 @@ def create_coder(config):
     wrong_mode_raise(config)
 
     if config.get('mode', 'mode') == "bch":
-        return bchlib.BCH(config.getint('bch', 'poly'), config.getint('bch', 't'))
+        return galois.BCH(config.getint('bch', 'n'), config.getint('bch', 'k'))
 
     if config.get('mode', 'mode') == "rs":
         return reedsolo.RSCodec(config.getint("rs", "ecc"), config.getint("rs", "max_size"))
@@ -14,28 +16,23 @@ def create_coder(config):
 
 def encode(thingToEncode, coder, config):
     if config.get('mode', 'mode') == "bch":
-        data = str.encode(thingToEncode, encoding="utf-8")
-        ecc = coder.encode(data)
-        pkg = data + ecc
-        return pkg
+        return coder.encode(thingToEncode).tolist()
 
     if config.get('mode', 'mode') == "rs":
-        encoded_data = coder.encode(thingToEncode.encode("utf-8"))
+        encoded_data = coder.encode(thingToEncode)
         res = []
         for i in encoded_data:
             res.append(i)
 
-        return res
+        return from_byte_to_bit(res, config)
 
 
 def decode(pkg, coder, config):
     if config.get('mode', 'mode') == "bch":
-        data, ecc = pkg[:-coder.ecc_bytes], pkg[-coder.ecc_bytes:]
-        val = coder.decode(data, ecc)
-        return val[1].decode("utf-8")
+        return coder.decode(pkg).tolist()
 
     if config.get('mode', 'mode') == "rs":
-        decoded_data = coder.decode(pkg)[0].decode("utf-8")
+        decoded_data = coder.decode(from_bit_to_byte(pkg, config))[0]
         res = []
         for i in decoded_data:
             res.append(i)
@@ -48,14 +45,11 @@ def wrong_mode_raise(config):
         raise Exception("Wrong parameter for coder")
 
 
-def from_byte_to_bit(byte_pkg):
+def from_byte_to_bit(byte_pkg, config):
+    end_of_original_codeword = config.getint("rs", "max_size") - config.getint("rs", "ecc") * 8
 
-    start_pkg = []
-    for i in byte_pkg:
-        start_pkg.append(i)
-
-    res_pkg = start_pkg[:231]
-    for number in start_pkg[231:]:
+    res_pkg = byte_pkg[:end_of_original_codeword]
+    for number in byte_pkg[end_of_original_codeword:]:
         res_pkg.extend(to_binary(number))
 
     return res_pkg
@@ -75,11 +69,15 @@ def to_binary(number):
     return res
 
 
-def from_bit_to_byte(start_pkg):
-    res_pkg = start_pkg[:231]
-    res_pkg.append(to_dex(start_pkg[231:239]))
-    res_pkg.append(to_dex(start_pkg[239:247]))
-    res_pkg.append(to_dex(start_pkg[247:]))
+def from_bit_to_byte(start_pkg, config):
+    end_of_original_codeword = config.getint("rs", "max_size") - config.getint("rs", "ecc") * 8
+
+    res_pkg = start_pkg[:end_of_original_codeword]
+    blocker = end_of_original_codeword
+    while blocker < config.getint("rs", "max_size"):
+        res_pkg.append(to_dex(start_pkg[blocker:blocker + 8]))
+        blocker += 8
+
     return res_pkg
 
 
@@ -90,7 +88,12 @@ def to_dex(list_of_binary):
 
 
 if __name__ == '__main__':
-    coder = bchlib.BCH(256, 3)
+
+    config = configparser.ConfigParser()
+    config.read('settings/settings.ini')
+
+    coder = create_coder(config)
+    # coder = galois.ReedSolomon(255, 231)
 
     mass = [1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 0, 1, 0,
             0, 0, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1,
@@ -100,25 +103,19 @@ if __name__ == '__main__':
             0, 1, 0, 0, 1, 1, 1, 1, 0, 1, 0, 1, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1,
             1, 0, 0, 1, 0, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0]
 
-    # ecc = coder.encode(b'hello')
-    # pkg = b'hello' + ecc
-    # print(pkg)
-    #
-    # data, ecc = pkg[:-coder.ecc_bytes], pkg[-coder.ecc_bytes:]
-    # val = coder.decode(data, ecc)
-    # print(val[1])
+    print(mass)
 
-    # print(str(mass)[1:len(str(mass)) - 1].replace(", ", ""))
+    encoded_mass = encode(mass, coder, config)
+    # encoded_mass = coder.encode(mass).tolist()
 
-    ecc = coder.encode(bytes(mass))
-    pkg = bytes(mass) + ecc
-    print(pkg)
+    print(encoded_mass)
+    print(len(encoded_mass))
 
-    binary_pkg = from_byte_to_bit(pkg)
+    val = decode(encoded_mass, coder, config)
+    # val = coder.decode(encoded_mass).tolist()
 
-    byte_pkg = bytes(from_bit_to_byte(binary_pkg))
-    data, ecc = byte_pkg[:-coder.ecc_bytes], byte_pkg[-coder.ecc_bytes:]
+    print(val)
+    print(len(val))
 
-    val = coder.decode(data, ecc)
-
-    print(val[1])
+    if mass == val:
+        print("IT'S DUCKING WORK!!")
