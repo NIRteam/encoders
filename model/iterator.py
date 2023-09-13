@@ -4,12 +4,11 @@ import numpy as np
 
 class MyIterator:
     """
-        length_line: длина создаваемой последовательности
         k:кодируемые данные
         n:последовательность с дополнительными байтами, добавленными БЧХ
     """
-    def __init__(self, length_line, n, k):
-        self.data = [0] * length_line
+    def __init__(self, n, k):
+        self.data = [0] * k
         self.index = 0
         self.coder = galois.BCH(n, k)
 
