@@ -63,7 +63,7 @@ if __name__ == "__main__":
                     for model in list_of_models:
                         try:
                             csv_logger = CSVLogger(
-                                current_directory / "logs" / f"{model.name_model}-{param.n}-{param.k}",
+                                PATH_TO_LOGGER + "/logs/" + f"{model.name_model}-{param.n}-{param.k}",
                                 separator=',', append=True)
                             early_stopping = CustomEarlyStopping(monitor1='errors', monitor2='binary_accuracy')
 
@@ -71,7 +71,7 @@ if __name__ == "__main__":
                                       callbacks=[csv_logger, early_stopping])
 
                             model.save_weights(
-                                current_directory / "weights" / f"{model.name_model}-{param.n}-{param.k}.h5")
+                                PATH_TO_WEIGHTS + "/weights/" + f"{model.name_model}-{param.n}-{param.k}.h5")
                         except Exception as err:
                             logging.error(f"Error while processing model = {model}. Reason: {err}")
 
