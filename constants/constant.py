@@ -42,9 +42,9 @@ LIST_OF_PARAMS = [ParamsForBCH(4, 7, 3), ParamsForBCH(11, 15, 4), ParamsForBCH(7
 
 LIST_OF_NAMES_OF_MODELS = ['ae', 'vae', 'cae', 'mae']
 
-PATH_TO_LOGGER = f'C:\\Git\\encoders'
+PATH_TO_LOGGER = 'C:\\Git\\encoders'
 
-PATH_TO_WEIGHTS = f'C:\\Git\\encoders'
+PATH_TO_WEIGHTS = 'C:\\Git\\encoders'
 
 
 class Models(Enum):
