@@ -4,8 +4,8 @@ import numpy as np
 
 class MyIterator:
     """
-        k:кодируемые данные
-        n:последовательность с дополнительными байтами, добавленными БЧХ
+        k: кодируемые данные
+        n: последовательность с дополнительными байтами, добавленными БЧХ
     """
     def __init__(self, n, k):
         self.data = [0] * k
@@ -18,16 +18,31 @@ class MyIterator:
 
     def __next__(self):
         if self.index >= 2 ** len(self.data):
-            self.__iter__()
-            raise StopIteration
-        else:
-            binary_num = format(self.index, '0' + str(len(self.data)) + 'b')
-            for i in range(len(binary_num)):
-                self.data[i] = int(binary_num[i])
-            self.index += 1
-            return self.get_data()
+            self.index = 0  # Сброс индекса
+            self.data = [0] * len(self.data)  # Сброс данных
+        binary_num = format(self.index, '0' + str(len(self.data)) + 'b')
+        for i in range(len(binary_num)):
+            self.data[i] = int(binary_num[i])
+        self.index += 1
+        x = np.array(self.coder.encode([self.data])).astype(np.int64)
+        y = np.array(self.coder.encode([self.data])).astype(np.int64)
+        return x, y
 
     def get_data(self):
         x = np.array(self.coder.encode([self.data])).astype(np.int64)
         y = np.array(self.coder.encode([self.data])).astype(np.int64)
         return x, y
+
+    def cycle(self):
+        while True:
+            yield from self
+
+
+if __name__=="__main__":
+    iterator = MyIterator(7, 4)
+    x, y = iterator.get_data()  # Получаем значения x и y из метода get_data()
+    iterator = MyIterator(7, 4)
+    while True:
+        x, y = iterator.__next__()
+        print(x, y)
+

@@ -1,82 +1,58 @@
-import math
-
-from keras import Input, Model
-from keras.layers import LeakyReLU, Dense
-from keras.metrics import Metric
-import keras.backend as K
-import tensorflow as tf
+from tensorflow.python.keras import Input
+from tensorflow.python.keras.models import Model
+from tensorflow.python.keras.layers import LeakyReLU, Dense
+from model.ErrorsMetric import ErrorsMetric
 from constants import constant
 
 
 class AE(Model):
-    def __init__(self, input_shape, input_layers, output_layers, hidden_size, alpha=constant.ALPHA,
-                 activation=constant.ACTIVATION):
+    def __init__(self, input_shape, num_layers, hidden_size, alpha=constant.ALPHA, activation=constant.ACTIVATION, name_model="AE"):
         super(AE, self).__init__()
         self.my_input_shape = input_shape
         self.input_tensor = Input(shape=input_shape)
-        self.input_layers = input_layers
-        self.output_layers = output_layers
+        self.num_layers = num_layers
         self.hidden_size = hidden_size
+        self.name_model = name_model
         self.alpha = alpha
         self.activation = activation
+        self.list_layer = {}
         self.model = self.create_encoder_decoder()
 
     def create_encoder_decoder(self):
-        # Создаем первый слой энкодера
-        encoder_layer = self.create_first_layer()
+        encoder_layer = self.create_encoder()
+        decoder_layer = self.create_decoder(encoder_layer)
 
-        # Создаем дополнительные слои энкодера и применяем функцию активации LeakyReLU
-        for i in range(self.input_layers - 1):
-            self.hidden_size //= 2
-            encoder_layer = Dense(int(math.floor(self.hidden_size)))(encoder_layer)
-            encoder_layer = LeakyReLU(alpha=self.alpha)(encoder_layer)
-
-        # Сохраняем выход последнего слоя энкодера
-        output_layer = encoder_layer
-
-        # Создаем слои декодера и применяем указанную функцию активации
-        for i in range(self.output_layers - 1):
-            self.hidden_size *= 2
-            output_layer = Dense(self.hidden_size, activation=self.activation)(output_layer)
-        # Создаем финальный слой декодера
-        output_layer = Dense(self.my_input_shape[0], activation=self.activation)(output_layer)
-
-        model = Model(self.input_tensor, output_layer)
-
+        model = Model(self.input_tensor, decoder_layer, name=self.name_model)
         return model
 
-    def create_first_layer(self):
-        first_layer = Dense(self.hidden_size)(self.input_tensor)
-        first_layer = LeakyReLU(alpha=self.alpha)(first_layer)
-        return first_layer
+    def create_encoder(self):
+        encoder_input = self.input_tensor
+        encoder_input = Dense(self.hidden_size)(encoder_input)
+        encoder_input = LeakyReLU(alpha=self.alpha)(encoder_input)
+        self.list_layer[self.hidden_size] = self.my_input_shape[0]*self.hidden_size+self.hidden_size
+        for i in range(1, self.num_layers):
+            new_hidden_size = int(self.hidden_size / (2 ** i))
+            encoder_input = Dense(new_hidden_size)(encoder_input)
+            encoder_input = LeakyReLU(alpha=self.alpha)(encoder_input)
+            self.list_layer[new_hidden_size] = self.my_input_shape[0] * new_hidden_size + new_hidden_size
+        return encoder_input
 
-    def compile(self, optimizer=constant.OPTIMIZER, loss=constant.LOSS):
-        self.model.compile(optimizer=optimizer, loss=loss, metrics=['binary_accuracy', ErrorsMetric()])
+    def create_decoder(self, encoder_layer):
+        decoder_input = encoder_layer
+        reversed_dict = dict(reversed([(key, value) for key, value in self.list_layer.items()]))
+        for hidden, _ in reversed_dict.items():
+            decoder_input = Dense(units=hidden)(decoder_input)
+            decoder_input = LeakyReLU(alpha=self.alpha)(decoder_input)
+        return decoder_input
 
     def summary(self):
         self.model.summary()
 
+    def call(self, inputs, training=None, mask=None):
+        return self.model(inputs)
 
-class ErrorsMetric(Metric):
-    def __init__(self, name='errors', **kwargs):
-        super(ErrorsMetric, self).__init__(name=name, **kwargs)
-        self.num_diffs = self.add_weight(name='num_diffs', initializer='zeros')
-
-    def update_state(self, y_true, y_pred, sample_weight=None):
-        y_pred = K.cast(K.round(y_pred), dtype='int64')
-        equal_bool_arr = K.not_equal(y_true, y_pred)
-        equal_int_arr = K.cast(equal_bool_arr, dtype='int64')
-
-        res = K.cast(self.num_diffs, dtype='int64')
-        for i in equal_int_arr:
-            error_count = K.sum(K.cast(i, dtype='int64'))
-            if tf.greater(error_count, res):
-                res = error_count
-
-        self.num_diffs.assign(K.cast(res, dtype='float32'))
-
-    def result(self):
-        return self.num_diffs
-
-    def reset_states(self):
-        self.num_diffs.assign(0.0)
+    def compile(self, optimizer=constant.OPTIMIZER, loss=constant.LOSS, metrics=None, loss_weights=None,
+                weighted_metrics=None, run_eagerly=None, **kwargs):
+        super(AE, self).compile(optimizer=optimizer, loss=loss, metrics=['binary_accuracy', ErrorsMetric()],
+                                loss_weights=loss_weights, weighted_metrics=weighted_metrics,
+                                run_eagerly=run_eagerly, **kwargs)

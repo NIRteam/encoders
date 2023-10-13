@@ -1,51 +1,71 @@
-import math
-
-from keras import Model
-from keras.layers import Dense, LeakyReLU, Lambda
-import keras.backend as K
-from model.AE import AE
-from constants import constant
 import tensorflow as tf
+from tensorflow.python.keras import Input, Model
+from tensorflow.python.keras.layers import Dense, LeakyReLU
+from constants import constant
+from model.ErrorsMetric import ErrorsMetric
 
-
-class VAE(AE):
-    def __init__(self, input_shape, input_layers, output_layers, hidden_size, alpha=constant.ALPHA,
-                 activation=constant.ACTIVATION):
-        super().__init__(input_shape, input_layers, output_layers, hidden_size, alpha, activation)
+class VAE(Model):
+    def __init__(self, input_shape, num_layers, hidden_size, alpha=constant.ALPHA, activation=constant.ACTIVATION, name_model="VAE"):
+        super(VAE, self).__init__()
+        self.my_input_shape = input_shape
+        self.input_tensor = Input(shape=input_shape)
+        self.num_layers = num_layers
+        self.hidden_size = hidden_size
+        self.name_model = name_model
+        self.alpha = alpha
+        self.activation = activation
+        self.list_layer = {}
+        self.model = self.create_encoder_decoder()
 
     def create_encoder_decoder(self):
-        # Создаем первый слой энкодера
-        encoder_layer = self.create_first_layer()
+        encoder_output = self.create_encoder()
+        decoder_output = self.create_decoder(encoder_output)
 
-        # Создаем дополнительные слои энкодера и применяем функцию активации LeakyReLU
-        for i in range(self.input_layers - 3):
-            self.hidden_size //= 2
-            encoder_layer = Dense(int(math.floor(self.hidden_size)))(encoder_layer)
-            encoder_layer = LeakyReLU(alpha=self.alpha)(encoder_layer)
-
-        z_mean = Dense(self.hidden_size)(encoder_layer)
-        z_log_var = Dense(self.hidden_size)(encoder_layer)
-        z = Lambda(self.sampling)([z_mean, z_log_var])
-
-        # Сохраняем выход последнего слоя энкодера
-        output_layer = encoder_layer
-
-        # Создаем слои декодера и применяем указанную функцию активации
-        for i in range(self.output_layers - 1):
-            self.hidden_size *= 2
-            output_layer = Dense(self.hidden_size, activation=self.activation)(output_layer)
-        # Создаем финальный слой декодера
-        output_layer = Dense(self.my_input_shape[0], activation=self.activation)(output_layer)
-
-        model = Model(self.input_tensor, output_layer)
-
-        kl_loss = -0.5 * K.sum(1 + z_log_var - K.square(z_mean) - K.exp(z_log_var), axis=-1)
-        model.add_loss(K.mean(kl_loss) * constant.LAM)
-
+        model = Model(self.input_tensor, decoder_output, name=self.name_model)
         return model
 
-    def sampling(self, args):
-        z_mean, z_log_var = args
+    def create_encoder(self):
+        encoder_input = self.input_tensor
+        encoder_layer = Dense(self.hidden_size)(encoder_input)
+        encoder_layer = LeakyReLU(alpha=self.alpha)(encoder_layer)
+
+        for i in range(1, self.num_layers):
+            new_hidden_size = int(self.hidden_size / (2 ** i))
+            encoder_layer = Dense(new_hidden_size)(encoder_layer)
+            encoder_layer = LeakyReLU(alpha=self.alpha)(encoder_layer)
+
+        z_mean = Dense(self.hidden_size, name="z_mean")(encoder_layer)
+        z_log_var = Dense(self.hidden_size, name="z_log_var")(encoder_layer)
+
+        return [encoder_input, z_mean, z_log_var]
+
+    def create_decoder(self, encoder_output):
+        encoder_input, z_mean, z_log_var = encoder_output
         batch_size = tf.shape(z_mean)[0]
-        epsilon = tf.random.normal(shape=(batch_size, self.hidden_size), mean=0., stddev=1.)
-        return z_mean + tf.exp(0.5 * z_log_var) * epsilon
+        epsilon = tf.random.normal(shape=(batch_size, self.hidden_size), mean=0., stddev=1.0)
+        z_mean = tf.cast(z_mean, dtype=tf.float32)
+        z_log_var = tf.cast(z_log_var, dtype=tf.float32)
+        z = z_mean + tf.exp(0.5 * z_log_var) * epsilon
+
+        decoder_layer = z
+
+        for i in range(1, self.num_layers):
+            new_hidden_size = int(self.hidden_size / (2 ** i))
+            decoder_layer = Dense(new_hidden_size)(decoder_layer)
+            decoder_layer = LeakyReLU(alpha=self.alpha)(decoder_layer)
+
+        decoder_output = Dense(self.my_input_shape[0], activation=self.activation)(decoder_layer)
+
+        return decoder_output
+
+    def summary(self):
+        self.model.summary()
+
+    def call(self, inputs, training=None, mask=None):
+        return self.model(inputs)
+
+    def compile(self, optimizer=constant.OPTIMIZER, loss=constant.LOSS, metrics=None, loss_weights=None,
+                weighted_metrics=None, run_eagerly=None, **kwargs):
+        super(VAE, self).compile(optimizer=optimizer, loss=loss, metrics=['binary_accuracy', ErrorsMetric()],
+                                loss_weights=loss_weights, weighted_metrics=weighted_metrics,
+                                run_eagerly=run_eagerly, **kwargs)
